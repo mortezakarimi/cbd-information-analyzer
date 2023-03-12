@@ -1,21 +1,31 @@
 {
-    "name": "mortezakarimi/cbd-information-analyzer",
-    "description": "Analize and process CBD information",
-    "type": "wordpress-plugin",
-    "license": "GPL-2.0+",
-    "autoload": {
-        "psr-4": {
-            "Mortezakarimi\\CbdInformationAnalyzer\\": "src/"
-        }
-    },
-    "authors": [
-        {
-            "name": "Morteza Karimi",
-            "email": "mortezak1373@gmail.com"
-        }
-    ],
-    "minimum-stability": "stable",
-    "require-dev": {
-        "friendsofphp/php-cs-fixer": "dev-master"
-    }
+  "name": "mortezakarimi/cbd-information-analyzer",
+  "description": "Analize and process CBD information",
+  "type": "wordpress-plugin",
+  "license": "GPL-2.0+",
+  "autoload": {
+	"psr-4": {
+	  "Cbd_Information_Analyzer\\": "src/"
+	}
+  },
+  "authors": [
+	{
+	  "name": "Morteza Karimi",
+	  "email": "mortezak1373@gmail.com"
+	}
+  ],
+  "minimum-stability": "stable",
+  "require-dev": {
+	"wp-coding-standards/wpcs": "^2.3.0"
+  },
+  "require": {
+	"php": ">=7.4",
+	"phpoffice/phpspreadsheet": "^1.27",
+	"tareq1988/wp-eloquent": "dev-master"
+  },
+  "config": {
+	"allow-plugins": {
+	  "dealerdirect/phpcodesniffer-composer-installer": true
+	}
+  }
 }

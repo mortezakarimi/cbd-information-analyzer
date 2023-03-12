@@ -1,4 +1,6 @@
 <?php
-
-declare(strict_types = 1);
-// Silence is golden
+/**
+ * Silence is golden
+ *
+ * @package           Cbd_Information_Analyzer
+ */

@@ -1,3 +1,9 @@
+/**
+ * This is public js
+ *
+ * @package           Cbd_Information_Analyzer
+ */
+
 (function( $ ) {
 	'use strict';
 

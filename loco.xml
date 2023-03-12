@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<bundle name="CBD Information Analyzer">
+  <domain name="cbd-information-analyzer-textdomain">
+    <project name="CBD Information Analyzer" slug="cbd-information-analyzer-textdomain">
+      <source>
+        <directory>.</directory>
+      </source>
+      <target>
+        <directory>languages</directory>
+      </target>
+      <template>
+        <file>languages/cbd-information-analyzer-textdomain.pot</file>
+      </template>
+    </project>
+  </domain>
+  <exclude>
+    <directory>vendor</directory>
+  </exclude>
+</bundle>
