@@ -33,30 +33,56 @@
 	 * practising this, we should strive to set a better example in our own work.
 	 */
 	$(function () {
+		if (typeof Chart === undefined) {
+			return;
+		}
+		Chart.register(ChartDataLabels);
 		const element = $('.target-actual-progress');
 		for (const elementElement of element) {
 			const ctx = elementElement.getContext('2d');
-			const actual = $(elementElement).data('actual') === 0 ? 1 : $(elementElement).data('actual');
-			const target = $(elementElement).data('target') === 0 ? actual : $(elementElement).data('target');
-			const percent = ((actual / target) * 100);
-			const data = {
-				labels: [
-					'Actual',
-					'Target',
-				],
-				datasets: [{
-					data: [percent, 100 - percent],
-					backgroundColor: [
-						'rgb(54, 162, 235)',
-						'rgb(255, 99, 132)'
-					],
-					hoverOffset: 4
-				}]
-			};
+			const actual = $(elementElement).data('actual');
+			const target = $(elementElement).data('target') === 0 ? 1 : $(elementElement).data('target');
+			const remaining = target - actual;
 			var chart = new Chart(ctx, {
-				type: 'pie',
-				data: data
-			})
+				type: 'doughnut',
+				data: {
+					datasets: [{
+						data: [actual, remaining],
+						backgroundColor: [
+							'rgb(54, 162, 235)',
+							'rgb(255, 99, 132)'
+						]
+					}],
+					labels: ['Progress', 'Remaining'],
+					hoverOffset: 4
+				},
+				options: {
+					cutoutPercentage: 70,
+					tooltips: {
+						enabled: false
+					},
+					legend: {
+						display: false
+					},
+					plugins: {
+						datalabels: {
+							formatter: (value, ctx) => {
+
+								let sum = 0;
+								let dataArr = ctx.chart.data.datasets[0].data;
+								dataArr.map(data => {
+									sum += data;
+								});
+								let percentage = (value * 100 / sum).toFixed(2) + "%";
+								return percentage;
+
+
+							},
+							color: '#fff',
+						}
+					}
+				}
+			});
 		}
 	})
 })

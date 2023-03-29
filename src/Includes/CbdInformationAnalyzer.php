@@ -15,7 +15,6 @@ declare( strict_types=1 );
 namespace Cbd_Information_Analyzer\Includes;
 
 use Cbd_Information_Analyzer\Admin\CbdInformationAnalyzerAdmin;
-use Cbd_Information_Analyzer\AppPublic\CbdInformationAnalyzerPublic;
 
 use function defined;
 
@@ -83,7 +82,9 @@ class CbdInformationAnalyzer {
 		$this->load_dependencies();
 		$this->set_locale();
 		$this->define_admin_hooks();
-		$this->define_public_hooks();
+
+		add_action( 'init', array( $this, 'add_ob_start' ) );
+		add_action( 'wp_footer', array( $this, 'flush_ob_end' ) );
 	}
 
 	/**
@@ -139,6 +140,9 @@ class CbdInformationAnalyzer {
 		$this->loader->add_action( 'admin_post_download_history_example',
 			$plugin_admin,
 			'download_history_example' );
+		$this->loader->add_action( 'admin_post_show_user_report_page',
+			$plugin_admin,
+			'show_user_report_page' );
 		$this->loader->add_filter( 'manage_users_columns', $plugin_admin, 'add_user_meta_column' );
 		$this->loader->add_filter( 'manage_users_custom_column', $plugin_admin, 'populate_user_meta_column', 10, 3 );
 	}
@@ -166,17 +170,18 @@ class CbdInformationAnalyzer {
 		return $this->version;
 	}
 
-	/**
-	 * Register all of the hooks related to the public-facing functionality
-	 * of the plugin.
-	 *
-	 * @since 1.0.0
-	 */
-	private function define_public_hooks(): void {
-		$plugin_public = new CbdInformationAnalyzerPublic( $this->get_plugin_name(), $this->get_version() );
+	public static function add_ob_start() {
+		global $buffer;
 
-		$this->loader->add_action( 'wp_enqueue_scripts', $plugin_public, 'enqueue_styles' );
-		$this->loader->add_action( 'wp_enqueue_scripts', $plugin_public, 'enqueue_scripts' );
+		ob_start( self::callback( $buffer ) );
+	}
+
+	public static function callback( $buffer ) {
+		return $buffer;
+	}
+
+	public static function flush_ob_end() {
+		ob_end_flush();
 	}
 
 	/**
@@ -185,7 +190,9 @@ class CbdInformationAnalyzer {
 	 * @since 1.0.0
 	 */
 	public function run(): void {
+		ob_start();
 		$this->loader->run();
+		ob_end_flush();
 	}
 
 	/**
@@ -198,5 +205,4 @@ class CbdInformationAnalyzer {
 	public function get_loader(): CbdInformationAnalyzerLoader {
 		return $this->loader;
 	}
-
 }

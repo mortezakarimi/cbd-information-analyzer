@@ -10,17 +10,15 @@
  * @package           Cbd_Information_Analyzer
  */
 
-use Cbd_Information_Analyzer\Admin\partials\User_Target_List_Table;
-use Cbd_Information_Analyzer\Admin\services\ProductService;
+use Cbd_Information_Analyzer\Admin\CbdInformationAnalyzerAdmin;
 use Cbd_Information_Analyzer\Admin\services\UserTargetService;
+use Cbd_Information_Analyzer\Admin\tables\User_Target_List_Table;
 use Cbd_Information_Analyzer\Includes\CbdInformationAnalyzerUtilities;
 
-
-if ( ! current_user_can( 'manage_options' ) ) {
-	CbdInformationAnalyzerUtilities::setErrors( 'Import User Monthly Target', 'You do not have permission to access this page.' );
+$children    = CbdInformationAnalyzerAdmin::get_child_users( get_current_user_id() );
+if(!empty($children)) {
+	UserTargetService::handleImportUserTargetForm();
 }
-UserTargetService::handleImportUserTargetForm();
-
 
 $monthly_target_list_table = new User_Target_List_Table();
 
@@ -42,6 +40,7 @@ CbdInformationAnalyzerUtilities::showErrors( 'Import User Monthly Target' );
 			$monthly_target_list_table->display(); ?>
         </form>
     </div>
+    <?php if(!empty($children)):?>
     <h1 id="add-new-user"><?php
 		_e( 'Import user target Data', 'cbd-information-analyzer-textdomain' ) ?></h1>
     <div id="ajax-response"></div>
@@ -58,7 +57,8 @@ CbdInformationAnalyzerUtilities::showErrors( 'Import User Monthly Target' );
                 <td>
                     <input type="file" id="user_targetfile" name="user_targetfile" class="regular-text"/>
                     <p class="description"><?php
-						_e( 'Upload User Monthly Target items as an excel file', 'cbd-information-analyzer-textdomain' ) ?>
+						_e( 'Upload User Monthly Target items as an excel file',
+							'cbd-information-analyzer-textdomain' ) ?>
 
                         <a href="<?= admin_url( 'admin-post.php?action=download_monthly_target_example' ) ?>"><?php
 							_e( 'Download Example file', 'cbd-information-analyzer-textdomain' ) ?></a>
@@ -69,7 +69,8 @@ CbdInformationAnalyzerUtilities::showErrors( 'Import User Monthly Target' );
                 <th scope="row"></th>
                 <td>
 					<?php
-					wp_nonce_field( 'cbd-analyzer-user_target-import', 'cbd_information_analyzer_user_target_import_nonce' ); ?>
+					wp_nonce_field( 'cbd-analyzer-user_target-import',
+						'cbd_information_analyzer_user_target_import_nonce' ); ?>
 					<?php
 					submit_button( __( 'Upload', 'cbd-information-analyzer-textdomain' ),
 						'primary',
@@ -79,4 +80,5 @@ CbdInformationAnalyzerUtilities::showErrors( 'Import User Monthly Target' );
             </tbody>
         </table>
     </form>
+    <?php endif;?>
 </div>

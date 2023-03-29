@@ -5,7 +5,7 @@ namespace Cbd_Information_Analyzer\Admin\services;
 use Cbd_Information_Analyzer\Admin\CbdInformationAnalyzerAdmin;
 use Cbd_Information_Analyzer\Admin\models\Product;
 use Cbd_Information_Analyzer\Admin\models\User;
-use Cbd_Information_Analyzer\Includes\CbdInformationAnalyzerDatabase;
+use Cbd_Information_Analyzer\Admin\models\UserTarget;
 use Cbd_Information_Analyzer\Includes\CbdInformationAnalyzerRoles;
 use Cbd_Information_Analyzer\Includes\CbdInformationAnalyzerUtilities;
 use DateTime;
@@ -21,6 +21,9 @@ use PhpOffice\PhpSpreadsheet\Style\NumberFormat;
  * @since v1.0
  */
 class UserTargetService {
+	/**
+	 * @throws Exception
+	 */
 	public static function handleImportUserTargetForm() {
 		if ( isset( $_POST['submit_import'] ) && wp_verify_nonce( $_POST['cbd_information_analyzer_user_target_import_nonce'],
 				'cbd-analyzer-user_target-import' ) ) {
@@ -48,11 +51,13 @@ class UserTargetService {
 		}
 	}
 
-	protected static function importUsersMonthlyTarget( string $filePath ) {
-		global $wpdb;
-		$userTargetTable = $wpdb->prefix . CbdInformationAnalyzerDatabase::SKU_USER_TARGET;
-		$spreadsheet     = IOFactory::load( $filePath );
-
+	/**
+	 * @throws Exception
+	 */
+	protected static function importUsersMonthlyTarget( string $filePath ): void {
+		$children    = CbdInformationAnalyzerAdmin::get_child_users( get_current_user_id() );
+		$spreadsheet = IOFactory::load( $filePath );
+		$spreadsheet->setActiveSheetIndex( 0 );
 		foreach ( $spreadsheet->getWorksheetIterator() as $worksheet ) {
 			$worksheet->setAutoFilter(
 				$spreadsheet->getActiveSheet()
@@ -64,9 +69,14 @@ class UserTargetService {
 			}
 			$user = get_user_by( 'login', $personalCode );
 
-			if ( ! \in_array( strtolower( $user->get( 'position' ) ), [ 'cbc', 'pr' ], false ) ) {
+			if ( null === $user || ! \in_array( $user->ID, $children, false ) ||
+			     ! \in_array( strtolower( $user->get( 'position' ) ),
+				     [ CbdInformationAnalyzerRoles::ROLE_CBD, CbdInformationAnalyzerRoles::ROLE_PR ],
+				     false )
+			) {
 				continue;
 			}
+
 			$highestRow = $worksheet->getHighestRow();
 			for ( $row = 2; $row <= $highestRow; ++ $row ) {
 				$monthYear = $worksheet->getCell( 'A' . $row )
@@ -78,24 +88,100 @@ class UserTargetService {
 				                              ->getValue();
 				$target           = $worksheet->getCell( 'D' . $row )
 				                              ->getValue();
+				$finalActual      = $worksheet->getCell( 'E' . $row )
+				                              ->getValue();
 
-				$isExist = (bool) $wpdb->get_var( $wpdb->prepare( "SELECT EXISTS(SELECT 1 FROM $userTargetTable WHERE `SKU_ID` = %d AND `USER_ID` = %d AND `target_year` = %d AND `target_month` = %d  LIMIT 1)",
-					[ $productId, $user->ID, $year, $month ] ) );
+				$product = Product::find( $productId );
 
-				if ( ! $isExist ) {
-					$wpdb->insert( $userTargetTable, [
-						'SKU_ID'             => $productId,
-						'USER_ID'            => $user->ID,
-						'target_year'        => $year,
-						'target_month'       => (int) $month,
-						'total_working_days' => (int) $totalWorkingDays,
-						'amount'             => $target,
-						'createdAt'          => ( new DateTime() )->format( 'Y-m-d h:i:s' ),
-						'updatedAt'          => ( new DateTime() )->format( 'Y-m-d h:i:s' )
-					] );
+				$userTarget = UserTarget::firstOrCreate( [
+					'SKU_ID'       => $product->ID,
+					'USER_ID'      => $user->ID,
+					'target_year'  => (int) $year,
+					'target_month' => (int) $month
+				], [
+					'total_working_days' => (int) $totalWorkingDays,
+					'amount'             => (int) $target,
+				] );
+				if ( null === $userTarget->actual && current_user_can( 'add_final_actual' ) ) {
+					$userTarget->actual = $finalActual;
 				}
+				if ( $userTarget->exists && ! $userTarget->wasRecentlyCreated && current_user_can( 'manage_target' ) ) {
+					$userTarget->total_working_days = $totalWorkingDays;
+					$userTarget->amount             = $target;
+					$userTarget->actual             = $finalActual;
+				}
+				$userTarget->save();
+
+				self::relatedTargets( $user, $product, $userTarget );
 			}
 		}
+	}
+
+	private static function relatedTargets( \WP_User $user, Product $product, UserTarget $user_target ): void {
+		$parentUserID = get_user_meta( $user->ID, 'parent', true );
+		$wp_user      = get_user_by( 'ID', $parentUserID );
+		if ( ! empty( $parentUserID ) ) {
+			$parentUser = User::find( $parentUserID );
+			if ( $parentUser ) {
+				$result     = self::calculateUserTargetsDateByUser( $parentUser,
+					$user_target->target_year,
+					$user_target->target_month,
+					$product->ID );
+				$userTarget = UserTarget::firstOrCreate( [
+					'SKU_ID'       => $product->ID,
+					'USER_ID'      => $parentUser->ID,
+					'target_year'  => $user_target->target_year,
+					'target_month' => $user_target->target_month
+				], [
+					'total_working_days' => $user_target->total_working_days,
+					'amount'             => $user_target->amount,
+					'actual'             => $user_target->actual
+				] );
+				if ( $userTarget->exists && ! $userTarget->wasRecentlyCreated ) {
+					$userTarget->amount = $result->target_sum ?? 0;
+					$userTarget->actual = $result->actual_sum ?? 0;
+				}
+				$userTarget->save();
+				self::relatedTargets( $wp_user, $product, $userTarget );
+			}
+		}
+	}
+
+	/**
+	 * @param User $user
+	 * @param int $targetYear
+	 *
+	 * @param int $targetMonth
+	 * @param int|null $forProduct
+	 *
+	 * @return UserTarget|null ({target_sum: int, actual_sum:int}&UserTarget)|null
+	 * @author Morteza Karimi <me@morteza-karimi.ir>
+	 * @since v1.0
+	 */
+	public static function calculateUserTargetsDateByUser(
+		User $user,
+		int $targetYear,
+		int $targetMonth,
+		int $forProduct = null
+	): ?UserTarget {
+		$children = CbdInformationAnalyzerAdmin::get_child_users( $user->ID );
+
+		$qb = UserTarget::whereIn( 'USER_ID', $children )
+		                ->groupBy( [ 'target_month', 'target_year' ] )
+		                ->where( 'target_month', $targetMonth )
+		                ->where( 'target_year', $targetYear );
+		if ( $forProduct ) {
+			$qb->where( 'SKU_ID', '=', $forProduct )
+			   ->groupBy( [ 'SKU_ID' ] );
+		}
+		$qb
+			->select( 'total_working_days' )
+			->addSelect( 'updatedAt' )
+			->addSelect( 'createdAt' )
+			->selectRaw( 'sum(amount) target_sum' )
+			->selectRaw( 'sum(actual) actual_sum' );
+
+		return $qb->get()->first();
 	}
 
 	/**
@@ -103,12 +189,10 @@ class UserTargetService {
 	 * @throws \PhpOffice\PhpSpreadsheet\Writer\Exception
 	 */
 	public static function handleGenerateExample(): void {
-		global $wpdb;
-		$productTable = $wpdb->prefix . CbdInformationAnalyzerDatabase::PRODUCT_TABLE;
-
-		$updatedAt = $wpdb->get_var( $wpdb->prepare( "SELECT MAX(updatedAt) FROM $productTable" ) );
+		$qb        = Product::query();
+		$updatedAt = $qb->max( 'updatedAt' );
 		/** @var Product[] $products */
-		$products = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM $productTable" ) );
+		$products = $qb->get()->all();
 
 		$spreadsheet = new Spreadsheet();
 		$spreadsheet
@@ -124,52 +208,70 @@ class UserTargetService {
 			->setCategory( 'Example Files' );
 
 
-		/** @var User[] $users */
-		$users            = get_users( [
-			'role__in' => [ CbdInformationAnalyzerRoles::ROLE_CBD, CbdInformationAnalyzerRoles::ROLE_PR ],
-			'include'  => CbdInformationAnalyzerAdmin::get_child_users( get_current_user_id() )
-		] );
-		$sheetNumber      = 0;
+		$children = CbdInformationAnalyzerAdmin::get_child_users( get_current_user_id() );
+
 		$dateTimeNow      = new DateTime();
 		$totalWorkingDays = self::totalWorkingDays( $dateTimeNow );
-		foreach ( $users as $user ) {
-			$sheet = $spreadsheet->createSheet( $sheetNumber ++ );
-			$sheet
-				->setTitle( $user->user_login )
-				->setCellValue( 'A1', 'Year-Month' )
-				->setCellValue( 'B1', 'Total Working Days' )
-				->setCellValue( 'C1', 'Product ID' )
-				->setCellValue( 'D1', 'Target' );
+		if ( ! empty( $children ) ) {
+			/** @var \WP_User[] $users */
+			$users       = get_users( [
+				'role__in' => [ CbdInformationAnalyzerRoles::ROLE_CBD, CbdInformationAnalyzerRoles::ROLE_PR ],
+				'include'  => $children
+			] );
+			$sheetNumber = 0;
+			foreach ( $users as $user ) {
+				$sheet = $spreadsheet->createSheet( $sheetNumber ++ );
+				$sheet
+					->setTitle( $user->user_login )
+					->setCellValue( 'A1', 'Year-Month' )
+					->setCellValue( 'B1', 'Total Working Days' )
+					->setCellValue( 'C1', 'Product ID' )
+					->setCellValue( 'D1', 'Target' );
+				if ( current_user_can( 'add_final_actual' ) ) {
+					$sheet->setCellValue( 'E1', 'Final Actual' );
+				}
 
-			$headerStyle = [
-				'font'      => [
-					'bold' => true,
-				],
-				'alignment' => [
-					'horizontal' => Alignment::HORIZONTAL_CENTER,
-				],
-			];
-			$sheet->getStyle( 'A1:D1' )->applyFromArray( $headerStyle );
-			$rowNumber = 2;
-			foreach ( $products as $product ) {
-				$sheet->setCellValue( 'A' . $rowNumber, $dateTimeNow->format( 'Y-m' ) )
-				      ->setCellValue( 'B' . $rowNumber, $totalWorkingDays )
-				      ->setCellValue( 'C' . $rowNumber, $product->ID )
-				      ->setCellValue( 'D' . $rowNumber, 0 );
+				$headerStyle = [
+					'font'      => [
+						'bold' => true,
+					],
+					'alignment' => [
+						'horizontal' => Alignment::HORIZONTAL_CENTER,
+					],
+				];
+				$sheet->getStyle( 'A1:E1' )->applyFromArray( $headerStyle );
+				$rowNumber = 2;
+				foreach ( $products as $product ) {
+					$sheet->setCellValue( 'A' . $rowNumber, $dateTimeNow->format( 'Y-m' ) )
+					      ->setCellValue( 'B' . $rowNumber, $totalWorkingDays )
+					      ->setCellValue( 'C' . $rowNumber, $product->ID )
+					      ->setCellValue( 'D' . $rowNumber, 0 );
+					if ( current_user_can( 'add_final_actual' ) ) {
+						$sheet->setCellValue( 'E' . $rowNumber, null );
+					}
 
-				$sheet->getStyle( 'A' . $rowNumber )->getNumberFormat()->setFormatCode( NumberFormat::FORMAT_DATE_MYMINUS );
-				$sheet->getStyle( 'B' . $rowNumber )->getNumberFormat()->setFormatCode( NumberFormat::FORMAT_NUMBER );
-				$sheet->getStyle( 'C' . $rowNumber )->getNumberFormat()->setFormatCode( NumberFormat::FORMAT_NUMBER );
-				$sheet->getStyle( 'D' . $rowNumber )->getNumberFormat()->setFormatCode( NumberFormat::FORMAT_NUMBER );
-				++ $rowNumber;
+					$sheet->getStyle( 'A' . $rowNumber )->getNumberFormat()->setFormatCode( NumberFormat::FORMAT_DATE_MYMINUS );
+					$sheet->getStyle( 'B' . $rowNumber )->getNumberFormat()->setFormatCode( NumberFormat::FORMAT_NUMBER );
+					$sheet->getStyle( 'C' . $rowNumber )->getNumberFormat()->setFormatCode( NumberFormat::FORMAT_NUMBER );
+					$sheet->getStyle( 'D' . $rowNumber )->getNumberFormat()->setFormatCode( NumberFormat::FORMAT_NUMBER );
+
+					if ( current_user_can( 'add_final_actual' ) ) {
+						$sheet->getStyle( 'E' . $rowNumber )->getNumberFormat()->setFormatCode( NumberFormat::FORMAT_NUMBER );
+					}
+					++ $rowNumber;
+				}
+				$sheet->getColumnDimension( 'A' )->setAutoSize( true );
+				$sheet->getColumnDimension( 'B' )->setAutoSize( true );
+				$sheet->getColumnDimension( 'C' )->setAutoSize( true );
+				$sheet->getColumnDimension( 'D' )->setAutoSize( true );
+
+				if ( current_user_can( 'add_final_actual' ) ) {
+					$sheet->getColumnDimension( 'E' )->setAutoSize( true );
+				}
+				$sheet->freezePane( 'F2' );
 			}
-			$sheet->getColumnDimension( 'A' )->setAutoSize( true );
-			$sheet->getColumnDimension( 'B' )->setAutoSize( true );
-			$sheet->getColumnDimension( 'C' )->setAutoSize( true );
-			$sheet->getColumnDimension( 'D' )->setAutoSize( true );
-			$sheet->freezePane( 'E2' );
+			$spreadsheet->removeSheetByIndex( $sheetNumber );
 		}
-		$spreadsheet->removeSheetByIndex( $sheetNumber );
 		header( 'Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' );
 		header( 'Content-Disposition: attachment;filename="Users ' . $dateTimeNow->format( 'Y-M' ) . ' Target List.xlsx"' );
 		header( 'Cache-Control: max-age=0' );
@@ -206,5 +308,21 @@ class UserTargetService {
 		}
 
 		return count( $workdays );
+	}
+
+	/**
+	 * @return array|UserTarget[]
+	 * @author Morteza Karimi <me@morteza-karimi.ir>
+	 * @since v1.0
+	 */
+	public static function getTargetsGroupByMonthAndYears(): array {
+		return UserTarget::query()
+		                 ->groupBy( [ 'target_year', 'target_month' ] )
+		                 ->selectRaw( 'concat(target_year,\' \', MONTHNAME(STR_TO_DATE(target_month, \'%m\'))) as available_dates' )
+		                 ->addSelect( 'target_year' )
+		                 ->addSelect( 'target_month' )
+		                 ->orderBy( 'target_year', 'desc' )
+		                 ->orderBy( 'target_month', 'desc' )
+		                 ->get()->all();
 	}
 }

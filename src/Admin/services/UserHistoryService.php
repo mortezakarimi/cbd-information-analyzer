@@ -5,6 +5,8 @@ namespace Cbd_Information_Analyzer\Admin\services;
 use Cbd_Information_Analyzer\Admin\CbdInformationAnalyzerAdmin;
 use Cbd_Information_Analyzer\Admin\models\Product;
 use Cbd_Information_Analyzer\Admin\models\User;
+use Cbd_Information_Analyzer\Admin\models\UserHistory;
+use Cbd_Information_Analyzer\Admin\models\UserTarget;
 use Cbd_Information_Analyzer\Includes\CbdInformationAnalyzerDatabase;
 use Cbd_Information_Analyzer\Includes\CbdInformationAnalyzerRoles;
 use Cbd_Information_Analyzer\Includes\CbdInformationAnalyzerUtilities;
@@ -52,20 +54,21 @@ class UserHistoryService {
 	 * @throws \Exception
 	 */
 	protected static function importUsersMonthlyTarget( string $filePath ) {
-		global $wpdb;
-		$userHistoryTable = $wpdb->prefix . CbdInformationAnalyzerDatabase::SKU_USER_HISTORY;
-		$spreadsheet      = IOFactory::load( $filePath );
-		$children         = CbdInformationAnalyzerAdmin::get_child_users( get_current_user_id() );
+		$children    = CbdInformationAnalyzerAdmin::get_child_users( get_current_user_id() );
+		$spreadsheet = IOFactory::load( $filePath );
 		$spreadsheet->setActiveSheetIndex( 0 );
 		foreach ( $spreadsheet->getWorksheetIterator() as $worksheet ) {
+			$worksheet->setAutoFilter(
+				$spreadsheet->getActiveSheet()
+				            ->calculateWorksheetDimension()
+			);
 			$personalCode = $worksheet->getTitle();
-
 			if ( ! is_numeric( $personalCode ) ) {
 				continue;
 			}
 			$user = get_user_by( 'login', $personalCode );
 
-			if ( ! \in_array( $user->ID, $children, false ) ||
+			if ( null === $user || ! \in_array( $user->ID, $children, false ) ||
 			     ! \in_array( strtolower( $user->get( 'position' ) ),
 				     [ CbdInformationAnalyzerRoles::ROLE_CBD, CbdInformationAnalyzerRoles::ROLE_PR ],
 				     false )
@@ -74,27 +77,84 @@ class UserHistoryService {
 			}
 			$highestRow = $worksheet->getHighestRow();
 			for ( $row = 2; $row <= $highestRow; ++ $row ) {
-				$changeDate = $worksheet->getCell( 'A' . $row )
-				                        ->getValue();
-				$productId  = $worksheet->getCell( 'B' . $row )
-				                        ->getValue();
-				$changeAmount     = $worksheet->getCell( 'C' . $row )
-				                        ->getValue();
+				$changeDate   = $worksheet->getCell( 'A' . $row )
+				                          ->getValue();
+				$productId    = $worksheet->getCell( 'B' . $row )
+				                          ->getValue();
+				$changeAmount = $worksheet->getCell( 'C' . $row )
+				                          ->getValue();
 
-				$isExist = (bool) $wpdb->get_var( $wpdb->prepare( "SELECT EXISTS(SELECT 1 FROM $userHistoryTable WHERE `SKU_ID` = %d AND `USER_ID` = %d AND `changeAt` = %s  LIMIT 1)",
-					[ $productId, $user->ID, $changeDate ] ) );
-				if ( ! $isExist ) {
-					$wpdb->insert( $userHistoryTable, [
-						'SKU_ID'    => $productId,
-						'USER_ID'   => $user->ID,
-						'changeAt'  => ( new DateTime( $changeDate ) )->format( 'Y-m-d' ),
-						'amount'    => $changeAmount,
-						'createdAt' => ( new DateTime() )->format( 'Y-m-d h:i:s' ),
-						'updatedAt' => ( new DateTime() )->format( 'Y-m-d h:i:s' )
-					] );
+				$changeDate = $changeDate ? new DateTime( $changeDate ) : new DateTime();
+				$product    = Product::find( $productId );
+
+				$userHistory = UserHistory::firstOrCreate( [
+					'SKU_ID'   => $product->ID,
+					'USER_ID'  => $user->ID,
+					'changeAt' => $changeDate,
+				], [
+					'amount' => (int) $changeAmount,
+				] );
+
+				if ( $userHistory->exists && ! $userHistory->wasRecentlyCreated && current_user_can( 'manage_target' ) ) {
+					$userHistory->amount = $changeAmount;
 				}
+				$userHistory->save();
+
+				self::relatedHistories( $user, $product, $userHistory );
 			}
 		}
+	}
+
+	private static function relatedHistories( \WP_User $user, Product $product, UserHistory $user_history ): void {
+		$parentUserID = get_user_meta( $user->ID, 'parent', true );
+		$wp_user      = get_user_by( 'ID', $parentUserID );
+		if ( ! empty( $parentUserID ) ) {
+			$parentUser = User::find( $parentUserID );
+			if ( $parentUser ) {
+				$result      = self::calculateUserHistoriesDateByUser( $parentUser,
+					$user_history->changeAt instanceof DateTime ? $user_history->changeAt : new DateTime( $user_history->changeAt ),
+					$product->ID );
+				$userHistory = UserHistory::firstOrCreate( [
+					'SKU_ID'   => $product->ID,
+					'USER_ID'  => $parentUser->ID,
+					'changeAt' => $user_history->changeAt,
+				], [
+					'amount' => 0,
+				] );
+				do_action( 'qm/debug', $result );
+				$userHistory->amount = $result->daily_actual ?? 0;
+				$userHistory->save();
+				self::relatedHistories( $wp_user, $product, $userHistory );
+			}
+		}
+	}
+
+	/**
+	 * @param User $user
+	 * @param DateTime $changeAt
+	 * @param int|null $forProduct
+	 *
+	 * @return UserHistory
+	 * @author Morteza Karimi <me@morteza-karimi.ir>
+	 * @since v1.0
+	 */
+	public static function calculateUserHistoriesDateByUser(
+		User $user,
+		DateTime $changeAt,
+		int $forProduct = null
+	): UserHistory {
+		$children = CbdInformationAnalyzerAdmin::get_child_users( $user->ID );
+
+		$qb = UserHistory::whereIn( 'USER_ID', $children )
+		                 ->where( 'changeAt', $changeAt );
+		if ( $forProduct ) {
+			$qb->where( 'SKU_ID', '=', $forProduct )
+			   ->groupBy( [ 'SKU_ID' ] );
+		}
+		$qb
+			->selectRaw( 'sum(amount) daily_actual' );
+
+		return $qb->get()->first();
 	}
 
 	/**
@@ -172,5 +232,28 @@ class UserHistoryService {
 		$writer = IOFactory::createWriter( $spreadsheet, 'Xlsx' );
 		$writer->save( 'php://output' );
 		exit;
+	}
+
+	public static function calculateTargetActualByProduct( int $user_id, int $product_id, int $month, int $year ) {
+		return [
+			'actual' =>
+				UserHistory::query()
+				           ->selectRaw( 'SUM(amount) as s' )
+				           ->selectRaw( 'concat(USER_ID, SKU_ID, MONTH(changeAt), YEAR(changeAt)) as a' )
+				           ->where( 'SKU_ID', '=', $product_id )
+				           ->where( 'USER_ID', '=', $user_id )
+				           ->whereMonth( 'changeAt', '=', $month )
+				           ->whereYear( 'changeAt', '=', $year )
+				           ->groupBy( [
+					           'a'
+				           ] )
+				           ->value( 's' ),
+			'target' => UserTarget::query()
+			                      ->where( 'SKU_ID', '=', $product_id )
+			                      ->where( 'USER_ID', '=', $user_id )
+			                      ->where( 'target_month', '=', $month )
+			                      ->where( 'target_year', '=', $year )
+			                      ->value( 'amount' ),
+		];
 	}
 }

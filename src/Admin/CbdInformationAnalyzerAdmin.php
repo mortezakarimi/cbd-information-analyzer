@@ -16,6 +16,7 @@ use Cbd_Information_Analyzer\Admin\services\UserHistoryService;
 use Cbd_Information_Analyzer\Admin\services\UserTargetService;
 use Cbd_Information_Analyzer\Includes\CbdInformationAnalyzerRoles;
 use PhpOffice\PhpSpreadsheet\Exception;
+use WP_User;
 
 /**
  * The admin-specific functionality of the plugin.
@@ -80,16 +81,39 @@ class CbdInformationAnalyzerAdmin {
 		include ADMIN_VIEWS_BASE . '/cbd-information-analyzer-admin-sku-import.php';
 	}
 
-	public static function get_child_users( $user_id ) {
-		$cache_key = 'child_users_for_user_' . $user_id;
-		$children  = get_transient( $cache_key );
 
-		if ( false === $children ) {
+	/**
+	 * SKU Import html page.
+	 *
+	 * @return void
+	 * @author Morteza Karimi <me@morteza-karimi.ir>
+	 * @since v1.0
+	 */
+	public static function history_import(): void {
+		include ADMIN_VIEWS_BASE . '/cbd-information-analyzer-admin-month-history-import.php';
+	}
+
+	/**
+	 * @param $user_id
+	 *
+	 * @return WP_User[]
+	 * @author Morteza Karimi <me@morteza-karimi.ir>
+	 * @since v1.0
+	 */
+	public static function get_child_users( $user_id ): array {
+		$cache_key = 'child_users_for_user_' . $user_id;
+//		$children  = get_transient( $cache_key );
+
+//		if ( false === $children ) {
 			$children = array();
 			if ( user_can( $user_id, CbdInformationAnalyzerRoles::ROLE_GOD ) ) {
-				$users = get_users();
+				$users = get_users( array(
+					'fields'       => array( 'ID', 'parent' ),
+					'meta_key'     => 'position',
+					'meta_compare' => 'EXISTS'
+				) );
 			} else {
-				/** @var \WP_User[] $users */
+				/** @var WP_User[] $users */
 				$users = get_users( array(
 					'fields'     => array( 'ID', 'parent' ),
 					'meta_key'   => 'parent',
@@ -104,8 +128,8 @@ class CbdInformationAnalyzerAdmin {
 			}
 
 			// Store the data in the cache for 1 hour
-			set_transient( $cache_key, $children, HOUR_IN_SECONDS );
-		}
+//			set_transient( $cache_key, $children, HOUR_IN_SECONDS );
+//		}
 
 		return $children;
 	}
@@ -157,6 +181,11 @@ class CbdInformationAnalyzerAdmin {
 			array( 'jquery' ),
 			'4.2.1',
 			true );
+		wp_enqueue_script( 'chartjs-plugin-datalabels',
+			'https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2',
+			array( 'chart-js' ),
+			'2.0.0',
+			true );
 		wp_enqueue_script(
 			$this->plugin_name,
 			plugin_dir_url( __FILE__ ) . 'js/cbd-information-analyzer-admin.js',
@@ -178,41 +207,33 @@ class CbdInformationAnalyzerAdmin {
 			__( 'CBD Analyzer Report', 'cbd-information-analyzer-textdomain' ),
 			__( 'CBD Analyzer', 'cbd-information-analyzer-textdomain' ),
 			'read_reports',
-			'cbd-analyzer',
-			array( $this, 'show_report' ),
+			'cbd-analyzer-history-import',
+			array( $this, 'history_import' ),
 			'dashicons-analytics',
 			100
 		);
 		add_submenu_page(
-			'cbd-analyzer',
-			__( 'Reports', 'cbd-information-analyzer-textdomain' ),
-			__( 'Reports', 'cbd-information-analyzer-textdomain' ),
-			'read_reports',
-			'cbd-analyzer',
-			array( $this, 'show_report' )
-		);
-		add_submenu_page(
-			'cbd-analyzer',
+			'cbd-analyzer-history-import',
 			__( 'Import History Information', 'cbd-information-analyzer-textdomain' ),
 			__( 'Import History', 'cbd-information-analyzer-textdomain' ),
 			'add_actual',
 			'cbd-analyzer-history-import',
-			static function (): void {
-				include ADMIN_VIEWS_BASE . '/cbd-information-analyzer-admin-month-history-import.php';
-			},
+			array( $this, 'history_import' )
 		);
+		if ( current_user_can( 'add_final_actual' ) ) {
+			add_submenu_page(
+				'cbd-analyzer-history-import',
+				__( 'Import Month Target Information', 'cbd-information-analyzer-textdomain' ),
+				__( 'Import Month Target', 'cbd-information-analyzer-textdomain' ),
+				'add_target',
+				'cbd-analyzer-month-target-import',
+				static function (): void {
+					include ADMIN_VIEWS_BASE . '/cbd-information-analyzer-admin-month-target-import.php';
+				},
+			);
+		}
 		add_submenu_page(
-			'cbd-analyzer',
-			__( 'Import Month Target Information', 'cbd-information-analyzer-textdomain' ),
-			__( 'Import Month Target', 'cbd-information-analyzer-textdomain' ),
-			'add_final_actual',
-			'cbd-analyzer-month-target-import',
-			static function (): void {
-				include ADMIN_VIEWS_BASE . '/cbd-information-analyzer-admin-month-target-import.php';
-			},
-		);
-		add_submenu_page(
-			'cbd-analyzer',
+			'cbd-analyzer-history-import',
 			__( 'Import Products Information', 'cbd-information-analyzer-textdomain' ),
 			__( 'Import Products', 'cbd-information-analyzer-textdomain' ),
 			'manage_options',
@@ -222,7 +243,7 @@ class CbdInformationAnalyzerAdmin {
 			},
 		);
 		add_submenu_page(
-			'cbd-analyzer',
+			'cbd-analyzer-history-import',
 			__( 'Import User Roles Information', 'cbd-information-analyzer-textdomain' ),
 			__( 'Import User Roles', 'cbd-information-analyzer-textdomain' ),
 			'manage_options',
@@ -232,9 +253,16 @@ class CbdInformationAnalyzerAdmin {
 			},
 		);
 
-//		add_action('admin_init',function (){
-//			var_dump(wp_get_current_user()->allcaps);
-//		});
+		add_submenu_page(
+			'cbd-analyzer-hidden-pages',
+			__( 'User Report Page', 'cbd-information-analyzer-textdomain' ),
+			__( 'User Report', 'cbd-information-analyzer-textdomain' ),
+			'read_reports',
+			'cbd-analyzer-user-report-page',
+			static function (): void {
+				include ADMIN_VIEWS_BASE . '/cbd-information-analyzer-admin-user-page.php';
+			},
+		);
 	}
 
 	/**

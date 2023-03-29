@@ -27,6 +27,7 @@ class UserRolePermissionService {
 						CbdInformationAnalyzerUtilities::setErrors( 'Import User Relation', 'File is too large' );
 					} else {
 						self::importUsersRelation( $file['tmp_name'] );
+						wp_redirect(self_admin_url('admin.php?page=cbd-analyzer-history-import'));
 					}
 				} else {
 					CbdInformationAnalyzerUtilities::setErrors( 'Import User Relation', 'Invalid file type' );

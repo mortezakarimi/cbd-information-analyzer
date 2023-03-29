@@ -33,6 +33,7 @@ class CbdInformationAnalyzerActivator {
 		try {
 			CbdInformationAnalyzerDatabase::init_database_tables();
 			CbdInformationAnalyzerRoles::add();
+			wp_cache_flush();
 		} catch ( \Exception $exception ) {
 			die( $exception->getMessage() );
 		}

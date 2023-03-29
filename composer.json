@@ -16,7 +16,9 @@
   ],
   "minimum-stability": "stable",
   "require-dev": {
-	"wp-coding-standards/wpcs": "^2.3.0"
+	"wp-coding-standards/wpcs": "^2.3.0",
+    "symfony/var-dumper": "^5.4",
+    "symfony/console": "^5.4"
   },
   "require": {
 	"php": ">=7.4",
