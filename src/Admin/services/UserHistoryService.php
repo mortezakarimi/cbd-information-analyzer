@@ -7,7 +7,6 @@ use Cbd_Information_Analyzer\Admin\models\Product;
 use Cbd_Information_Analyzer\Admin\models\User;
 use Cbd_Information_Analyzer\Admin\models\UserHistory;
 use Cbd_Information_Analyzer\Admin\models\UserTarget;
-use Cbd_Information_Analyzer\Includes\CbdInformationAnalyzerDatabase;
 use Cbd_Information_Analyzer\Includes\CbdInformationAnalyzerRoles;
 use Cbd_Information_Analyzer\Includes\CbdInformationAnalyzerUtilities;
 use DateTime;
@@ -62,11 +61,8 @@ class UserHistoryService {
 				$spreadsheet->getActiveSheet()
 				            ->calculateWorksheetDimension()
 			);
-			$personalCode = $worksheet->getTitle();
-			if ( ! is_numeric( $personalCode ) ) {
-				continue;
-			}
-			$user = get_user_by( 'login', $personalCode );
+			$personalCode = (int) $worksheet->getTitle();
+			$user         = get_user_by( 'login', $personalCode );
 
 			if ( null === $user || ! \in_array( $user->ID, $children, false ) ||
 			     ! \in_array( strtolower( $user->get( 'position' ) ),
@@ -81,7 +77,7 @@ class UserHistoryService {
 				                          ->getValue();
 				$productId    = $worksheet->getCell( 'B' . $row )
 				                          ->getValue();
-				$changeAmount = $worksheet->getCell( 'C' . $row )
+				$changeAmount = $worksheet->getCell( 'D' . $row )
 				                          ->getValue();
 
 				$changeDate = $changeDate ? new DateTime( $changeDate ) : new DateTime();
@@ -162,18 +158,10 @@ class UserHistoryService {
 	 * @throws \PhpOffice\PhpSpreadsheet\Writer\Exception
 	 */
 	public static function handleGenerateExample(): void {
-		global $wpdb;
-		$productTable = $wpdb->prefix . CbdInformationAnalyzerDatabase::PRODUCT_TABLE;
-
-		$updatedAt = $wpdb->get_var( $wpdb->prepare( "SELECT MAX(updatedAt) FROM $productTable" ) );
+		$qb        = Product::query();
+		$updatedAt = $qb->max( 'updatedAt' );
 		/** @var Product[] $products */
-		$products = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM $productTable" ) );
-
-		/** @var User[] $users */
-		$users = get_users( [
-			'role__in' => [ CbdInformationAnalyzerRoles::ROLE_CBD, CbdInformationAnalyzerRoles::ROLE_PR ],
-			'include'  => CbdInformationAnalyzerAdmin::get_child_users( get_current_user_id() )
-		] );
+		$products = $qb->get()->all();
 
 		$spreadsheet = new Spreadsheet();
 		$spreadsheet
@@ -188,50 +176,60 @@ class UserHistoryService {
 			->setKeywords( 'example, xlsx, users daily changes list' )
 			->setCategory( 'Example Files' );
 
+		$children = CbdInformationAnalyzerAdmin::get_child_users( get_current_user_id() );
+		if ( ! empty( $children ) ) {
+			/** @var \WP_User[] $users */
+			$users       = get_users( [
+				'role__in' => [ CbdInformationAnalyzerRoles::ROLE_CBD, CbdInformationAnalyzerRoles::ROLE_PR ],
+				'include'  => $children
+			] );
+			$sheetNumber = 0;
+			$dateTimeNow = new DateTime();
+			foreach ( $users as $user ) {
+				$sheet = $spreadsheet->createSheet( $sheetNumber ++ );
+				$sheet
+					->setTitle( $user->user_login )
+					->setCellValue( 'A1', 'Year-Month-Day' )
+					->setCellValue( 'B1', 'Product ID' )
+					->setCellValue( 'C1', 'Product Name' )
+					->setCellValue( 'D1', 'Changes' );
 
-		$sheetNumber = 0;
-
-		$dateTimeNow = new DateTime();
-		foreach ( $users as $user ) {
-			$sheet = $spreadsheet->createSheet( $sheetNumber ++ );
-			$sheet
-				->setTitle( $user->user_login )
-				->setCellValue( 'A1', 'Year-Month-Day' )
-				->setCellValue( 'B1', 'Product ID' )
-				->setCellValue( 'C1', 'Changes' );
-
-			$headerStyle = [
-				'font'      => [
-					'bold' => true,
-				],
-				'alignment' => [
-					'horizontal' => Alignment::HORIZONTAL_CENTER,
-				],
-			];
-			$sheet->getStyle( 'A1:C1' )->applyFromArray( $headerStyle );
-			$rowNumber = 2;
-			foreach ( $products as $product ) {
-				$sheet->setCellValue( 'A' . $rowNumber, $dateTimeNow->format( 'd-m-Y' ) )
-				      ->setCellValue( 'B' . $rowNumber, $product->ID )
-				      ->setCellValue( 'C' . $rowNumber, 0 );
-				$sheet->getStyle( 'A' . $rowNumber )->getNumberFormat()->setFormatCode( NumberFormat::FORMAT_DATE_DMYMINUS );
-				$sheet->getStyle( 'B' . $rowNumber )->getNumberFormat()->setFormatCode( NumberFormat::FORMAT_NUMBER );
-				$sheet->getStyle( 'C' . $rowNumber )->getNumberFormat()->setFormatCode( '+0;-0;0' );
-				++ $rowNumber;
+				$headerStyle = [
+					'font'      => [
+						'bold' => true,
+					],
+					'alignment' => [
+						'horizontal' => Alignment::HORIZONTAL_CENTER,
+					],
+				];
+				$sheet->getStyle( 'A1:D1' )->applyFromArray( $headerStyle );
+				$rowNumber = 2;
+				foreach ( $products as $product ) {
+					$sheet->setCellValue( 'A' . $rowNumber, $dateTimeNow->format( 'd-m-Y' ) )
+					      ->setCellValue( 'B' . $rowNumber, $product->ID )
+					      ->setCellValue( 'C' . $rowNumber, $product->name )
+					      ->setCellValue( 'D' . $rowNumber, 0 );
+					$sheet->getStyle( 'A' . $rowNumber )->getNumberFormat()->setFormatCode( NumberFormat::FORMAT_DATE_DMYMINUS );
+					$sheet->getStyle( 'B' . $rowNumber )->getNumberFormat()->setFormatCode( NumberFormat::FORMAT_NUMBER );
+					$sheet->getStyle( 'D' . $rowNumber )->getNumberFormat()->setFormatCode( '+0;-0;0' );
+					++ $rowNumber;
+				}
+				$sheet->getColumnDimension( 'A' )->setAutoSize( true );
+				$sheet->getColumnDimension( 'B' )->setAutoSize( true );
+				$sheet->getColumnDimension( 'C' )->setAutoSize( true );
+				$sheet->getColumnDimension( 'D' )->setAutoSize( true );
+				$sheet->freezePane( 'E2' );
 			}
+			$spreadsheet->removeSheetByIndex( $sheetNumber );
 		}
-		$spreadsheet->removeSheetByIndex( $sheetNumber );
-		$sheet->getColumnDimension( 'A' )->setAutoSize( true );
-		$sheet->getColumnDimension( 'B' )->setAutoSize( true );
-		$sheet->getColumnDimension( 'C' )->setAutoSize( true );
-		$sheet->freezePane( 'D2' );
 		header( 'Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' );
 		header( 'Content-Disposition: attachment;filename="Users Daily Change for ' . $dateTimeNow->format( 'd-M-Y' ) . ' List.xlsx"' );
 		header( 'Cache-Control: max-age=0' );
 
-		$writer = IOFactory::createWriter( $spreadsheet, 'Xlsx' );
+		$writer = IOFactory::createWriter( $spreadsheet, IOFactory::WRITER_XLS );
 		$writer->save( 'php://output' );
 		exit;
+
 	}
 
 	public static function calculateTargetActualByProduct( int $user_id, int $product_id, int $month, int $year ) {

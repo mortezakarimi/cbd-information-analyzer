@@ -102,9 +102,9 @@ class CbdInformationAnalyzerAdmin {
 	 */
 	public static function get_child_users( $user_id ): array {
 		$cache_key = 'child_users_for_user_' . $user_id;
-//		$children  = get_transient( $cache_key );
+		$children  = get_transient( $cache_key );
 
-//		if ( false === $children ) {
+		if ( false === $children ) {
 			$children = array();
 			if ( user_can( $user_id, CbdInformationAnalyzerRoles::ROLE_GOD ) ) {
 				$users = get_users( array(
@@ -128,8 +128,8 @@ class CbdInformationAnalyzerAdmin {
 			}
 
 			// Store the data in the cache for 1 hour
-//			set_transient( $cache_key, $children, HOUR_IN_SECONDS );
-//		}
+			set_transient( $cache_key, $children, HOUR_IN_SECONDS );
+		}
 
 		return $children;
 	}

@@ -99,7 +99,7 @@ class UserHistory extends Model {
 			->whereYear( 'changeAt', '=', $targetYear );
 	}
 
-	protected function setKeysForSaveQuery( Builder $query ) {
+	protected function setKeysForSaveQuery( $query ) {
 		$query
 			->where( 'USER_ID', '=', $this->getAttribute( 'USER_ID' ) )
 			->where( 'SKU_ID', '=', $this->getAttribute( 'SKU_ID' ) );

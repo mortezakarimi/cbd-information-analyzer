@@ -49,27 +49,31 @@ class UserRolePermissionService {
 		for ( $row = 2; $row <= $highestRow; ++ $row ) {
 			$personalCode = $worksheet->getCell( 'B' . $row )
 			                          ->getValue();
-			$position     = $worksheet->getCell( 'D' . $row )
-			                          ->getValue();
-			$area         = $worksheet->getCell( 'E' . $row )
-			                          ->getValue();
-			$region       = $worksheet->getCell( 'F' . $row )
-			                          ->getValue();
-			$parent       = $worksheet->getCell( 'G' . $row )
-			                          ->getValue();
+			$position     = strtolower($worksheet->getCell( 'D' . $row )
+			                          ->getValue());
+			$area         = strtolower($worksheet->getCell( 'E' . $row )
+			                          ->getValue());
+			$region       = strtolower($worksheet->getCell( 'F' . $row )
+			                          ->getValue());
+			$parent       = strtolower($worksheet->getCell( 'G' . $row )
+			                          ->getValue());
 			if ( empty( $parent ) ) {
-				$parent = $worksheet->getCell( 'H' . $row )
-				                    ->getValue();
+				$parent = strtolower($worksheet->getCell( 'H' . $row )
+				                    ->getValue());
 			}
 			if ( empty( $parent ) ) {
-				$parent = $worksheet->getCell( 'I' . $row )
-				                    ->getValue();
+				$parent = strtolower($worksheet->getCell( 'I' . $row )
+				                    ->getValue());
 			}
 
 
 			$user = get_user_by( 'login', $personalCode );
 			if ( $user ) {
 				$parent = get_user_by( 'login', $parent );
+
+				$cache_key = 'child_users_for_user_' . $user->ID;
+				delete_transient($cache_key);
+
 				if ( ! empty( $parent ) ) {
 					update_user_meta(
 						$user->ID,
@@ -85,7 +89,7 @@ class UserRolePermissionService {
 					$position
 				);
 
-				$user->add_role( strtolower( $position ) );
+				$user->add_role(  $position );
 
 				update_user_meta(
 					$user->ID,

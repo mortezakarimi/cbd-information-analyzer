@@ -43,6 +43,7 @@ class CbdInformationAnalyzerRoles {
 			self::ROLE_CBD,
 			'CBD',
 			[
+				'read'=>true,
 				'read_reports' => true
 			]
 		);
@@ -50,6 +51,7 @@ class CbdInformationAnalyzerRoles {
 			self::ROLE_PR,
 			'PR',
 			[
+				'read'=>true,
 				'read_reports' => true
 			]
 		);

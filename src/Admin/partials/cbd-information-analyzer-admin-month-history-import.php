@@ -24,9 +24,7 @@ $children = CbdInformationAnalyzerAdmin::get_child_users( get_current_user_id() 
 if ( ! empty( $children ) ) {
 	UserHistoryService::handleImportUserTargetForm();
 }
-
 $history_list_table = new User_History_List_Table();
-
 CbdInformationAnalyzerUtilities::showErrors( 'Import User History' );
 ?>
 

@@ -128,7 +128,7 @@ class ProductService {
 		header( 'Content-Disposition: attachment;filename="Products List.xlsx"' );
 		header( 'Cache-Control: max-age=0' );
 
-		$writer = IOFactory::createWriter( $spreadsheet, 'Xlsx' );
+		$writer = IOFactory::createWriter( $spreadsheet, IOFactory::WRITER_XLS );
 		$writer->save( 'php://output' );
 		exit;
 	}

@@ -14,28 +14,36 @@ use Cbd_Information_Analyzer\Admin\models\Product;
 use Cbd_Information_Analyzer\Admin\services\UserHistoryService;
 
 $user = get_user_by( 'id', $_REQUEST['element'] );
-[ $orderBy, $sort ] = explode( '-', $_REQUEST['sort-items'] );
+[ $orderBy, $sort ] = explode( '-', $_REQUEST['sort-items'] ?? 'ID-asc' );
 $products       = Product::all()->map( function ( Product $product ) use ( $user ) {
-	$result                       = UserHistoryService::calculateTargetActualByProduct(
+	$result               = UserHistoryService::calculateTargetActualByProduct(
 		$user->ID,
 		$product->ID,
 		$_REQUEST['month'],
 		$_REQUEST['year']
 	);
-	$product['target']            = $result['target'] ?? 0;
-	$product['actual']            = $result['actual'] ?? 0;
-	$product['remaining']         = $product['target'] - $product['actual'];
-	$product['remaining-percent'] = ( $product['remaining'] / $product['target'] ) * 100;
+	$product['target']    = $result['target'] ?? 0;
+	$product['actual']    = $result['actual'] ?? 0;
+	$product['remaining'] = $product['target'] > $product['actual'] ? $product['target'] - $product['actual'] : 0;
+
+	$product['remaining-percent'] = 0;
+	if ( $product['target'] > 0 ) {
+		$product['remaining-percent'] = ( $product['remaining'] / $product['target'] ) * 100;
+	}
 
 	return $product;
 } )->sortBy( $orderBy, SORT_REGULAR, 'desc' === $sort );
 $availableSorts = [
-	'target-asc'     => 'Target Ascending',
-	'target-desc'    => 'Target Descending',
-	'actual-asc'     => 'Actual Ascending',
-	'actual-desc'    => 'Actual Descending',
-	'remaining-percent-asc'  => 'Remaining Ascending',
-	'remaining-percent-desc' => 'Remaining Descending',
+	'id-asc'                 => 'Product SKU ID Ascending',
+	'id-desc'                => 'Product SKU ID Descending',
+	'target-asc'             => 'Target Ascending',
+	'target-desc'            => 'Target Descending',
+	'actual-asc'             => 'Actual Ascending',
+	'actual-desc'            => 'Actual Descending',
+	'remaining-asc'          => 'Remaining Total Ascending',
+	'remaining-desc'         => 'Remaining Total Descending',
+	'remaining-percent-asc'  => 'Remaining Percent Ascending',
+	'remaining-percent-desc' => 'Remaining Percent Descending',
 ];
 ?>
 

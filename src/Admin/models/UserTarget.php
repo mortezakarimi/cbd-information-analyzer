@@ -95,7 +95,7 @@ class UserTarget extends Model {
 		return $this->belongsTo( User::class, 'USER_ID', 'ID' )->withDefault();
 	}
 
-	protected function setKeysForSaveQuery( Builder $query ): Builder {
+	protected function setKeysForSaveQuery( $query ): Builder {
 		$query
 			->where( 'USER_ID', '=', $this->getAttribute( 'USER_ID' ) )
 			->where( 'SKU_ID', '=', $this->getAttribute( 'SKU_ID' ) )

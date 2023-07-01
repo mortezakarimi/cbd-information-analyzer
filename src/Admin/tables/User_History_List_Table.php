@@ -27,7 +27,6 @@ class User_History_List_Table extends AbstractBaseHistoryTables {
 			$year,
 			$month
 		] = $this->processTableData();
-
 		$historyQueryBuilder = UserHistory::groupBy( [ 'h_user_id', 'tmonth', 'tyear' ] )
 		                                  ->selectRaw( 'USER_ID h_user_id' )
 		                                  ->selectRaw( 'sum(amount) real_sum' )
@@ -92,12 +91,15 @@ class User_History_List_Table extends AbstractBaseHistoryTables {
 				'month'              => $month,
 				'year'               => $year,
 				'user_id'            => $userWithTarget->ID,
-				'user'               => sprintf( '<a href="%s">%s-%s %s</a>',
+				'user'               => current_user_can( 'edit_user', $wp_user->ID ) ? sprintf( '<a href="%s">%s-%s %s</a>',
 					add_query_arg( 'user_id', $userWithTarget->ID, self_admin_url( 'user-edit.php' ) ),
 					$wp_user->nickname,
 					$wp_user->first_name,
+					$wp_user->last_name ) : sprintf( '%s-%s %s',
+					$wp_user->nickname,
+					$wp_user->first_name,
 					$wp_user->last_name ),
-				'user_type'          => $meta->meta_value ?? __( 'Not Set',
+				'user_type'          => $meta->meta_value ?strtoupper($meta->meta_value): __( 'Not Set',
 						'cbd-information-analyzer-textdomain' ),
 				'target'             => $userWithTarget->target_sum ?? __( 'Not Set',
 						'cbd-information-analyzer-textdomain' ),

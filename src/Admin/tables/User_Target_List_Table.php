@@ -16,7 +16,7 @@ class User_Target_List_Table extends AbstractBaseHistoryTables {
 		) );
 	}
 
-	public function prepare_items() {
+	public function prepare_items(): void {
 		[
 			$columns,
 			$hidden,
@@ -39,17 +39,19 @@ class User_Target_List_Table extends AbstractBaseHistoryTables {
 		                                ->addSelect( 'target_month' )
 		                                ->addSelect( 'target_year' );
 
-		$qb                 = User::whereIn( 'ID', $this->children )
-		                          ->leftJoinSub( $targetQueryBuilder, 'ut', 'ut.USER_ID', '=', 'ID' );
+		$qb = User::select( '*' )
+		          ->whereIn( 'ID', $this->children )
+		          ->leftJoinSub( $targetQueryBuilder, 'ut', 'ut.USER_ID', '=', 'ID' );
 
 
 		$this->processPositionSearch( $qb );
+		$this->processAreaSearch( $qb );
 		$this->processNormalSearch( $qb );
 
 
 		$this->processOrderBy( $qb );
 		$this->set_pagination_args( $this->processPagination( $qb ) );
-		$table_data = $qb->select( '*' )->get()->all();
+		$table_data = $qb->get()->all();
 		$data       = $this->setTableDataToColumns( $table_data, $month, $year );
 
 		$this->items           = $data;
@@ -69,19 +71,23 @@ class User_Target_List_Table extends AbstractBaseHistoryTables {
 	public function setTableDataToColumns( array $table_data, $month, $year ): array {
 		$data = [];
 		foreach ( $table_data as $userWithTarget ) {
-			/** @var UserMeta $meta */
-			$meta    = $userWithTarget->meta()->where( [ 'meta_key' => 'position' ] )->first();
-			$wp_user = get_user_by( 'id', $userWithTarget->ID );
-			$data[]  = array(
+			/** @var UserMeta $metaPosition */
+			$metaPosition = $userWithTarget->meta()->where( [ 'meta_key' => 'position' ] )->first();
+			/** @var UserMeta $metaArea */
+			$metaArea = $userWithTarget->meta()->where( [ 'meta_key' => 'area' ] )->first();
+			$wp_user  = get_user_by( 'id', $userWithTarget->ID );
+			$data[]   = array(
 				'month'              => $month,
 				'year'               => $year,
 				'user_id'            => $userWithTarget->ID,
-				'user'     => sprintf( '<a href="%s">%s-%s %s</a>',
+				'user'               => sprintf( '<a href="%s">%s-%s %s</a>',
 					add_query_arg( 'user_id', $userWithTarget->ID, self_admin_url( 'user-edit.php' ) ),
 					$wp_user->nickname,
 					$wp_user->first_name,
 					$wp_user->last_name ),
-				'user_type'          => $meta->meta_value ?? __( 'Not Set',
+				'user_type'          => $meta->meta_value ? strtoupper( $meta->meta_value ) : __( 'Not Set',
+					'cbd-information-analyzer-textdomain' ),
+				'user_area'          => $metaArea->meta_value ?? __( 'Not Set',
 						'cbd-information-analyzer-textdomain' ),
 				'target'             => $userWithTarget->target_sum ?? __( 'Not Set',
 						'cbd-information-analyzer-textdomain' ),
@@ -103,6 +109,7 @@ class User_Target_List_Table extends AbstractBaseHistoryTables {
 		return array(
 			'user'               => __( 'User', 'cbd-information-analyzer-textdomain' ),
 			'user_type'          => __( 'User Position', 'cbd-information-analyzer-textdomain' ),
+			'user_area'          => __( 'User Area', 'cbd-information-analyzer-textdomain' ),
 			'target'             => __( 'Target', 'cbd-information-analyzer-textdomain' ),
 			'actual'             => __( 'Actual', 'cbd-information-analyzer-textdomain' ),
 			'total_working_days' => __( 'Total Working days', 'cbd-information-analyzer-textdomain' ),
@@ -123,6 +130,7 @@ class User_Target_List_Table extends AbstractBaseHistoryTables {
 		switch ( $column_name ) {
 			case 'user':
 			case 'user_type':
+			case 'user_area':
 			case 'target':
 			case 'actual':
 			case 'total_working_days':

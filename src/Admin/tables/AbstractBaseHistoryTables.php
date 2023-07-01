@@ -8,6 +8,7 @@ use Cbd_Information_Analyzer\Admin\models\UserTarget;
 use Cbd_Information_Analyzer\Admin\services\UserTargetService;
 use Cbd_Information_Analyzer\Includes\CbdInformationAnalyzerRoles;
 use Illuminate\Database\Eloquent\Builder;
+use WeDevs\ORM\WP\UserMeta;
 use WP_List_Table;
 use WP_User;
 
@@ -21,12 +22,11 @@ abstract class AbstractBaseHistoryTables extends WP_List_Table {
 
 	public function __construct( $args = array() ) {
 		$this->month_year_list = UserTargetService::getTargetsGroupByMonthAndYears();
-
-		$this->children = CbdInformationAnalyzerAdmin::get_child_users( get_current_user_id() );
+		$this->children        = CbdInformationAnalyzerAdmin::get_child_users( get_current_user_id() );
 		parent::__construct( $args );
 	}
 
-	public function extra_tablenav( $which ) {
+	public function extra_tablenav( $which ): void {
 		if ( 'top' === $which ) {
 			?>
             <div class="alignleft actions bulkactions">
@@ -59,11 +59,34 @@ abstract class AbstractBaseHistoryTables extends WP_List_Table {
 					<?php
 					endforeach; ?>
                 </select>
+                <label class="hidden" for="filter-user-area"><?php
+					_e( 'Select Area', 'cbd-information-analyzer-textdomain' ) ?></label>
+                <select
+                        name="filter-user-area" id="filter-user-area">
+                    <option value=""><?php
+						_e( 'All area', 'cbd-information-analyzer-textdomain' ); ?></option>
+					<?php
+					foreach ( self::getAreaList() as $title ): ?>
+						<?php
+						$selected = ( isset( $_REQUEST['filter-user-position'] ) and $_REQUEST['filter-user-position'] === $title ) ? ' selected' : '';
+						?>
+                        <option value="<?= $title ?>"<?= $selected ?>><?= $title ?></option>
+					<?php
+					endforeach; ?>
+                </select>
                 <input type="submit" id="search-submit" class="button" value="<?php
 				_e( 'Filter', 'cbd-information-analyzer-textdomain' ) ?>">
             </div>
 			<?php
 		}
+	}
+
+	public static function getAreaList(): array {
+		$areas = UserMeta::select( 'meta_value' )->distinct()->where( 'meta_key',
+			'=',
+			'area' )->get( [ 'meta_value' ] )->pluck( 'meta_value' );
+
+		return $areas->toArray();
 	}
 
 	public function column_actions( $item ): string {
@@ -78,7 +101,6 @@ abstract class AbstractBaseHistoryTables extends WP_List_Table {
 
 		return $this->row_actions( $actions, true );
 	}
-
 
 	/**
 	 * @return array
@@ -120,7 +142,7 @@ abstract class AbstractBaseHistoryTables extends WP_List_Table {
 	}
 
 	/**
-	 * @param Builder|User $qb
+	 * @param Builder $qb
 	 *
 	 * @return void
 	 * @author Morteza Karimi <me@morteza-karimi.ir>
@@ -129,8 +151,14 @@ abstract class AbstractBaseHistoryTables extends WP_List_Table {
 	public function processNormalSearch( Builder $qb ): void {
 		$search = $_POST['s'] ?? null;
 		if ( ! empty( $search ) ) {
-			$qb->whereHas( 'user', function ( $query ) use ( $search ) {
-				return $query->where( 'user_login', 'LIKE', "%$search%" );
+			$qb->where( 'user_login', 'LIKE', "%$search%" );
+			$qb->orWhereHas( 'meta', function ( Builder $builder ) use ( $search ) {
+				$builder->where( function ( $query )  use ( $search ) {
+					$query->where( 'meta_key', '=', 'first_name' )
+					      ->where( 'meta_value', 'LIKE', "%$search%" );
+                } )->orWhere( function ( $query ) use ( $search )  {
+					$query->where( 'meta_key', '=', 'last_name' )->where( 'meta_value', 'LIKE', "%$search%" );
+                } );
 			} );
 		}
 	}
@@ -156,7 +184,7 @@ abstract class AbstractBaseHistoryTables extends WP_List_Table {
 	 */
 	public function processPagination( Builder $qb ): array {
 		$per_page    = 10;
-		$total_items = $qb->select( 'ID' )->get()->count();
+		$total_items = $qb->get()->count();
 		$total_pages = ceil( $total_items / $per_page );
 
 		$paged  = isset( $_REQUEST['paged'] ) ? max( 0, (int) $_REQUEST['paged'] - 1 ) : 0;
@@ -182,4 +210,19 @@ abstract class AbstractBaseHistoryTables extends WP_List_Table {
 		}
 	}
 
+	/**
+	 * @param Builder|User $qb
+	 *
+	 * @return void
+	 * @author Morteza Karimi <me@morteza-karimi.ir>
+	 * @since v1.0
+	 */
+	public function processAreaSearch( Builder $qb ): void {
+		$areaSearch = $_REQUEST['filter-user-area'] ?? null;
+		if ( ! empty( $areaSearch ) ) {
+			$qb->whereHas( 'meta', function ( Builder $builder ) use ( $areaSearch ) {
+				$builder->where( 'meta_key', '=', 'area' )->where( 'meta_value', '=', $areaSearch );
+			} );
+		}
+	}
 }

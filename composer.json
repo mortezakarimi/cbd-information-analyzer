@@ -4,30 +4,33 @@
   "type": "wordpress-plugin",
   "license": "GPL-2.0+",
   "autoload": {
-	"psr-4": {
-	  "Cbd_Information_Analyzer\\": "src/"
-	}
+    "psr-4": {
+      "Cbd_Information_Analyzer\\": "src/"
+    }
   },
   "authors": [
-	{
-	  "name": "Morteza Karimi",
-	  "email": "mortezak1373@gmail.com"
-	}
+    {
+      "name": "Morteza Karimi",
+      "email": "mortezak1373@gmail.com"
+    }
   ],
   "minimum-stability": "stable",
   "require-dev": {
-	"wp-coding-standards/wpcs": "^2.3.0",
+    "wp-coding-standards/wpcs": "^2.3.0",
     "symfony/var-dumper": "^5.4",
-    "symfony/console": "^5.4"
+    "symfony/console": "^5.4",
+    "fakerphp/faker": "^1.23"
   },
   "require": {
-	"php": ">=7.4",
-	"phpoffice/phpspreadsheet": "^1.27",
-	"tareq1988/wp-eloquent": "dev-master"
+    "php": ">=7.4 <8.0",
+    "phpoffice/phpspreadsheet": "^1.27",
+    "tareq1988/wp-eloquent": "dev-master",
+    "ext-intl": "*",
+    "mpdf/mpdf": "^8.1"
   },
   "config": {
-	"allow-plugins": {
-	  "dealerdirect/phpcodesniffer-composer-installer": true
-	}
+    "allow-plugins": {
+      "dealerdirect/phpcodesniffer-composer-installer": true
+    }
   }
 }

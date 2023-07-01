@@ -15,9 +15,9 @@ declare( strict_types=1 );
 namespace Cbd_Information_Analyzer\Includes;
 
 use Cbd_Information_Analyzer\Admin\CbdInformationAnalyzerAdmin;
-
+use Cbd_Information_Analyzer\Admin\services\UserProfileService;
+use Cbd_Information_Analyzer\User\CbdInformationAnalyzerUser;
 use function defined;
-
 
 /**
  * The core plugin class.
@@ -82,9 +82,7 @@ class CbdInformationAnalyzer {
 		$this->load_dependencies();
 		$this->set_locale();
 		$this->define_admin_hooks();
-
-		add_action( 'init', array( $this, 'add_ob_start' ) );
-		add_action( 'wp_footer', array( $this, 'flush_ob_end' ) );
+		$this->define_user_hooks();
 	}
 
 	/**
@@ -145,6 +143,7 @@ class CbdInformationAnalyzer {
 			'show_user_report_page' );
 		$this->loader->add_filter( 'manage_users_columns', $plugin_admin, 'add_user_meta_column' );
 		$this->loader->add_filter( 'manage_users_custom_column', $plugin_admin, 'populate_user_meta_column', 10, 3 );
+
 	}
 
 	/**
@@ -170,18 +169,19 @@ class CbdInformationAnalyzer {
 		return $this->version;
 	}
 
-	public static function add_ob_start() {
-		global $buffer;
+	private function define_user_hooks() {
+		$plugin_user = new CbdInformationAnalyzerUser( $this->get_plugin_name(), $this->get_version() );
 
-		ob_start( self::callback( $buffer ) );
-	}
+		add_shortcode( 'cbd_show_report', [ UserProfileService::class, 'showReportShortcode' ] );
+		add_shortcode( 'cbd_download_buttons', [ UserProfileService::class, 'showDownloadButtonsShortcode' ] );
+		add_shortcode( 'cbd_report_filter', [ UserProfileService::class, 'showFilterShortcode' ] );
+		add_shortcode( 'cbd_elapsed_working_days_percent', [ UserProfileService::class, 'showElapsedDaysPercentShortcode' ] );
+		add_shortcode( 'cbd_elapsed_working_days', [ UserProfileService::class, 'showElapsedWorkingDaysShortcode' ] );
+		add_shortcode( 'cbd_total_working_days', [ UserProfileService::class, 'showWorkingDaysShortcode' ] );
 
-	public static function callback( $buffer ) {
-		return $buffer;
-	}
-
-	public static function flush_ob_end() {
-		ob_end_flush();
+		$this->loader->add_action( 'init',
+			$plugin_user,
+			'generate_file_init' );
 	}
 
 	/**
@@ -190,9 +190,7 @@ class CbdInformationAnalyzer {
 	 * @since 1.0.0
 	 */
 	public function run(): void {
-		ob_start();
 		$this->loader->run();
-		ob_end_flush();
 	}
 
 	/**
