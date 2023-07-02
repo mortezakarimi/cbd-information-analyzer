@@ -85,7 +85,7 @@ class User_Target_List_Table extends AbstractBaseHistoryTables {
 					$wp_user->nickname,
 					$wp_user->first_name,
 					$wp_user->last_name ),
-				'user_type'          => $meta->meta_value ? strtoupper( $meta->meta_value ) : __( 'Not Set',
+				'user_type'          => $metaPosition->meta_value ? strtoupper( $metaPosition->meta_value ) : __( 'Not Set',
 					'cbd-information-analyzer-textdomain' ),
 				'user_area'          => $metaArea->meta_value ?? __( 'Not Set',
 						'cbd-information-analyzer-textdomain' ),

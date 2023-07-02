@@ -74,7 +74,7 @@ class UserTargetService {
 			$user = get_user_by( 'login', $personalCode );
 
 			if ( null === $user || ! \in_array( $user->ID, $children, false ) ||
-			     ! \in_array( strtolower( $user->get( 'Position' ) ),
+			     ! \in_array( strtolower( $user->get( 'position' ) ),
 				     [ CbdInformationAnalyzerRoles::ROLE_CBD, CbdInformationAnalyzerRoles::ROLE_PR ],
 				     false )
 			) {

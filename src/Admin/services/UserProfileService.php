@@ -260,7 +260,7 @@ class UserProfileService {
 			$styles = self::convertStyleToArray( $product->trend_style );
 			$sheet->getStyle( 'E' . $rowNumber )->getFill()
 			      ->setFillType( \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID )
-			      ->getStartColor()->setARGB( $styles['background-color'] ?? 'FFFFFF' );
+			      ->getStartColor()->setARGB( str_replace( '#', '', $styles['background-color'] ) ?? 'FFFFFF' );
 			$sheet->getStyle( 'E' . $rowNumber )->getFont()
 			      ->getColor()
 			      ->setARGB( $styles['color'] ?? '000000' );
