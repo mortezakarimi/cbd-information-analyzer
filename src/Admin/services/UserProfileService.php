@@ -375,7 +375,7 @@ class UserProfileService {
 						<?= empty( $_GET['category'] ) ? 'selected' : '' ?>><?= __( 'All Categories', 'cbd-information-analyzer-textdomain' ) ?></option>
 					<?php foreach ( $categories as $category ): ?>
                         <option value="<?= esc_attr__( $category, 'cbd-information-analyzer-textdomain' ) ?>"
-							<?= esc_attr__( $category, 'cbd-information-analyzer-textdomain' ) == sanitize_text_field( $_GET['category'] ) ? 'selected' : '' ?>><?= $category ?></option>
+							<?= esc_attr__( $category, 'cbd-information-analyzer-textdomain' ) == sanitize_text_field( $_GET['category'] ?? '' ) ? 'selected' : '' ?>><?= esc_attr__( $category, 'cbd-information-analyzer-textdomain' ) ?></option>
 					<?php endforeach; ?>
                 </select>
             </label>
