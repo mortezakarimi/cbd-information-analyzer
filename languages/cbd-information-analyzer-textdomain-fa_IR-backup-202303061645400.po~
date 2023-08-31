@@ -1,0 +1,128 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: CBD Information Analyzer\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2023-03-06 16:18+0000\n"
+"PO-Revision-Date: 2023-03-06 16:44+0000\n"
+"Last-Translator: \n"
+"Language-Team: فارسی\n"
+"Language: fa_IR\n"
+"Plural-Forms: nplurals=2; plural=n != 1;\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: Loco https://localise.biz/\n"
+"X-Loco-Version: 2.6.3; wp-6.1.1\n"
+"X-Domain: cbd-information-analyzer-textdomain"
+
+#: src/Admin/CbdInformationAnalyzerAdmin.php:140
+msgid "CBD Analyzer"
+msgstr "آنالیز کننده CBD"
+
+#: src/Admin/CbdInformationAnalyzerAdmin.php:139
+msgid "CBD Analyzer Report"
+msgstr "گزارش تحلیلگر CBD"
+
+#. Name of the plugin
+msgid "CBD Information Analyzer"
+msgstr "تجزیه و تحلیل اطلاعات CBD"
+
+#: src/Admin/partials/Product_List_Table.php:68
+#: src/Admin/partials/User_Target_List_Table.php:68
+msgid "Created At"
+msgstr "ایجاد شده در"
+
+#: src/Admin/partials/cbd-information-analyzer-admin-product-import.php:63
+msgid "Download Example file"
+msgstr "دانلود فایل نمونه"
+
+#: src/Admin/partials/Product_List_Table.php:67
+#: src/Admin/partials/User_Target_List_Table.php:67
+msgid "Group"
+msgstr "گروه"
+
+#. URI of the plugin
+#. Author URI of the plugin
+msgid "https://morteza-karimi.ir"
+msgstr "https://morteza-karimi.ir"
+
+#: src/Admin/partials/Product_List_Table.php:65
+#: src/Admin/partials/User_Target_List_Table.php:65
+msgid "ID"
+msgstr "شناسه"
+
+#: src/Admin/partials/cbd-information-analyzer-admin-product-import.php:73
+msgid "Import"
+msgstr "بارگذاری"
+
+#: src/Admin/CbdInformationAnalyzerAdmin.php:158
+msgid "Import Month Target"
+msgstr "ورود هدف ماهیانه"
+
+#: src/Admin/CbdInformationAnalyzerAdmin.php:157
+msgid "Import Month Target Information"
+msgstr "ورود اطلاعات اهداف ماهیانه"
+
+#: src/Admin/partials/cbd-information-analyzer-admin-product-import.php:45
+#: src/Admin/partials/cbd-information-analyzer-admin-month-target-import.php:45
+msgid "Import Product Data"
+msgstr "ورود اطلاعات محصول"
+
+#: src/Admin/CbdInformationAnalyzerAdmin.php:168
+msgid "Import Products"
+msgstr "ورود محصولات"
+
+#: src/Admin/CbdInformationAnalyzerAdmin.php:167
+msgid "Import Products Information"
+msgstr "ورود اطلاعات محصولات"
+
+#. Description of the plugin
+msgid "Load and process CBD information"
+msgstr "اطلاعات CBD را بارگیری و پردازش کنید"
+
+#: src/Admin/partials/cbd-information-analyzer-admin-month-target-import.php:33
+msgid "Month Target List"
+msgstr "لیست هدف ماه"
+
+#. Author of the plugin
+msgid "Morteza Karimi"
+msgstr "مرتضی کریمی"
+
+#: src/Admin/partials/Product_List_Table.php:66
+#: src/Admin/partials/User_Target_List_Table.php:66
+msgid "Name"
+msgstr "نام"
+
+#: src/Admin/partials/cbd-information-analyzer-admin-product-import.php:33
+msgid "Product List"
+msgstr "لیست محصولات"
+
+#: src/Admin/CbdInformationAnalyzerAdmin.php:149
+#: src/Admin/CbdInformationAnalyzerAdmin.php:150
+msgid "Reports"
+msgstr "گزارشات"
+
+#: src/Admin/partials/cbd-information-analyzer-admin-product-import.php:39
+#: src/Admin/partials/cbd-information-analyzer-admin-month-target-import.php:39
+msgid "Search Products"
+msgstr "جست‌وجو محصولات"
+
+#: src/Admin/partials/cbd-information-analyzer-admin-product-import.php:55
+#: src/Admin/partials/cbd-information-analyzer-admin-month-target-import.php:55
+msgid "SKU list upload"
+msgstr "آپلود لیست محصولات"
+
+#: src/Admin/partials/Product_List_Table.php:69
+#: src/Admin/partials/User_Target_List_Table.php:69
+msgid "Updated At"
+msgstr "بروزرسانی شده در"
+
+#: src/Admin/partials/cbd-information-analyzer-admin-product-import.php:60
+#: src/Admin/partials/cbd-information-analyzer-admin-month-target-import.php:60
+msgid "Upload SKU items as an excel file"
+msgstr "ورود لیست محصولات به صورت فایل اکسل"
+
+#: src/Admin/partials/cbd-information-analyzer-admin-product-import.php:48
+#: src/Admin/partials/cbd-information-analyzer-admin-month-target-import.php:48
+msgid "You can import list of products here"
+msgstr "شما می‌توانید لیست محصولات را این بارگزاری نمایید"
