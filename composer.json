@@ -16,7 +16,7 @@
   ],
   "minimum-stability": "stable",
   "require-dev": {
-    "wp-coding-standards/wpcs": "^2.3.0",
+    "wp-coding-standards/wpcs": "^3.0.0",
     "symfony/var-dumper": "^5.4",
     "symfony/console": "^5.4",
     "fakerphp/faker": "^1.23"
