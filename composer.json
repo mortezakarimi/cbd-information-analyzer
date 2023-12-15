@@ -22,7 +22,7 @@
     "fakerphp/faker": "^1.23"
   },
   "require": {
-    "php": ">=7.4 <8.0",
+    "php": "<8.4",
     "phpoffice/phpspreadsheet": "^1.27",
     "tareq1988/wp-eloquent": "dev-master",
     "ext-intl": "*",
