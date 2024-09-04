@@ -23,7 +23,7 @@
   },
   "require": {
     "php": ">=7.4 <8.0",
-    "phpoffice/phpspreadsheet": "^1.27",
+    "phpoffice/phpspreadsheet": "^2.0",
     "tareq1988/wp-eloquent": "dev-master",
     "ext-intl": "*",
     "mpdf/mpdf": "^8.1"
